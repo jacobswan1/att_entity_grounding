@@ -2,12 +2,6 @@
 from __future__ import print_function
 from FlickrDataset2 import FlickrDataset2
 from tensorboardX import SummaryWriter
-<<<<<<< HEAD
-=======
-from torch.autograd import Variable
-from collections import OrderedDict
-import matplotlib.patches as patches
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
 from torchvision import transforms
 import matplotlib.pyplot as plt
 from Model import Model
@@ -15,21 +9,12 @@ from Model2 import Model2
 # from Model3 import Model3
 from net_util import *
 from parser import *
-<<<<<<< HEAD
 import math
-=======
-import random
-import math
-import cv2
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
 os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
 def l2_regulariza_loss(map):
     # return torch.mean(map.view(map.shape[0], map.shape[-2], map.shape[-1]))
     mean = torch.mean(map.view(map.shape[0], map.shape[-2], map.shape[-1]))
@@ -58,12 +43,8 @@ def train_net(net, opts):
     train_back_bone = True
     fig = plt.figure()
 
-<<<<<<< HEAD
     for batch_idx, (images, category, (one_hot, label), textual_emb, phrase, mask, line, filename, size, all_one_hot,
                     all_attribute, att_label, all_line) in enumerate(data_loader):
-=======
-    for batch_idx, (images, category, (one_hot, label), textual_emb, phrase, mask, line, filename, size, all_one_hot, all_attribute, att_label) in enumerate(data_loader):
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
 
         model.visual_net.config.IMAGES_PER_GPU = images.size(0)
         images = Variable(images).cuda()

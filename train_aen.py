@@ -36,11 +36,7 @@ def train_net(net, opts):
     end_time = time.time()
     fig = plt.figure()
 
-<<<<<<< HEAD
     for batch_idx, (images, category, (one_hot, label), textual_emb, phrase, mask, line, filename, size, all_one_hot, att_emb, att_label, all_line) \
-=======
-    for batch_idx, (images, category, (one_hot, label), textual_emb, phrase, mask, line, filename, size, all_one_hot, att_emb, att_label) \
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
             in enumerate(data_loader):
 
         model.visual_net.config.IMAGES_PER_GPU = images.size(0)
@@ -49,17 +45,11 @@ def train_net(net, opts):
         att_emb = Variable(att_emb.view(att_emb.shape[0] * att_emb.shape[1], att_emb.shape[2]).float()).cuda()
         att_label = Variable(att_label.view(att_label.shape[0]*att_label.shape[1]).float()).cuda()
 
-<<<<<<< HEAD
         v_feat, t_feat, att_map, rpn_rois, P3, P5 = net(images, all_one_hot, att_emb)
 
         loss = margin_loss(v_feat, t_feat, att_label)
         # Number of correctly predicted
 
-=======
-        v_feat, t_feat, att_map, rpn_rois, P5 = net(images, all_one_hot, att_emb)
-
-        loss = margin_loss(v_feat, t_feat, att_label)
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
         train_loss += loss.data[0]
         optimizer.zero_grad()
         loss.backward()
@@ -80,11 +70,7 @@ def train_net(net, opts):
                 plt.subplot(122)
                 plt.imshow(images[random].permute(1, 2, 0).float().data.cpu())
                 plt.pause(0.001)
-<<<<<<< HEAD
                 # writer.add_scalar('Cross Entropy Loss', train_loss / (batch_idx+1), opts.iter_n)
-=======
-                writer.add_scalar('Cross Entropy Loss', train_loss / (batch_idx+1), opts.iter_n)
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
                 opts.iter_n += 1
             print('Overall Loss: %.8f' % (train_loss/(batch_idx+1)))
 
@@ -107,11 +93,7 @@ def train_net(net, opts):
     }
 
     if opts.epoch % opts.checkpoint_epoch == 0:
-<<<<<<< HEAD
         save_file_path = os.path.join(opts.checkpoint_path, 'AENet_P5_{}.pth'.format(opts.epoch))
-=======
-        save_file_path = os.path.join(opts.checkpoint_path, 'AENet_P3_P5_{}.pth'.format(opts.epoch))
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
         torch.save(net_states, save_file_path)
 
     print('Batch Loss: %.8f, elapsed time: %3.f seconds.' % (train_loss, total_time))
@@ -120,11 +102,7 @@ def train_net(net, opts):
 if __name__ == '__main__':
 
     opts = parse_opts()
-<<<<<<< HEAD
     # writer = SummaryWriter()
-=======
-    writer = SummaryWriter()
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
 
     if opts.gpu_id >= 0:
         torch.cuda.set_device(opts.gpu_id)
@@ -163,11 +141,7 @@ if __name__ == '__main__':
         new_params = model.state_dict()
         new_params.update(state_dict)
         model.load_state_dict(new_params)
-<<<<<<< HEAD
     start_epoch = 2
-=======
-    start_epoch = 0
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
     print('==> model built.')
     opts.criterion = [torch.nn.CrossEntropyLoss(), torch.nn.BCEWithLogitsLoss()]
 
@@ -207,10 +181,5 @@ if __name__ == '__main__':
 
         train_net(model, opts)
 
-<<<<<<< HEAD
     # writer.export_scalars_to_json("./all_scalars.json")
     # writer.close()
-=======
-    writer.export_scalars_to_json("./all_scalars.json")
-    writer.close()
->>>>>>> 093ca1597ae5038fbdfdb2bf7fc6cde40a8e8d72
