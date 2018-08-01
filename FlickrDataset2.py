@@ -134,7 +134,33 @@ class FlickrDataset2(Dataset):
 
         attr_emb, attr_label = self.pos_neg_pairs(attr, frequent_atts)
 
-        return img, category, label_pair, textual_emb, text, mask, line, filename, size, all_one_hot, attr_emb, attr_label
+        # Extract all attribute & entity for classification
+        # Load att-entity dict
+        list_file = open('entity_att_flickr.txt', 'r')
+        entity_att = []
+        for i in list_file.readlines():
+            entity_att.append(i.replace('\n', ''))
+        ent_att_lable = np.zeros(75)
+        phrase = re.findall(regex, all_line)
+        for p in phrase:
+            words = re.findall(text_regex, p)[0][0:-1]
+            words = nltk.pos_tag([item for item in words.split(' ') if len(item) > 0])
+            for item in words:
+                word = item[0]
+                att = item[1]
+                # NNS case
+                if att == 'NNS':
+                    word = word[0:-1]
+                    if word.lower() in entity_att:
+                        index = entity_att.index(word.lower())
+                        ent_att_lable[index] = 1
+                # attribute or entity case
+                elif att == 'JJ' or att == 'NN':
+                    if word.lower() in entity_att:
+                        index = entity_att.index(word.lower())
+                        ent_att_lable[index] = 1
+
+        return img, category, label_pair, textual_emb, text, mask, line, filename, size, all_one_hot, attr_emb, attr_label, ent_att_lable
 
 
 def generate_mask(ori_size, size, coords):

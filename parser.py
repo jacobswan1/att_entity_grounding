@@ -15,12 +15,12 @@ def parse_opts():
 
     parser.add_argument('--optimizer', default=optim.SGD, help='optimizer')
     parser.add_argument('--num_workers', default=2, type=int, help='num of fetching threads')
-    parser.add_argument('--batch_size', default=6, type=int, help='batch size')
+    parser.add_argument('--batch_size', default=2, type=int, help='batch size')
     parser.add_argument('--weight_decay', default=1e-3, type=float, help='weight decay')
     parser.add_argument('--seed', default=0, type=int, help='randome seed')
     parser.add_argument('--result_path', default='./results', help='result path')
     parser.add_argument('--backbone_model', default='./models/mrcnn.pth', help='result path')
-    parser.add_argument('--resume', default='./checkpoint/Model2_flickr_P3-P4-P5_att.pth', help='resume from pre-trained model')  # ./checkpoint/Model2_flickr_P3-P4-P5_att.pth
+    parser.add_argument('--resume', default='', help='resume from pre-trained model')  # ./checkpoint/Model2_flickr_P3-P4-P5_att.pth
 
     parser.add_argument('--class_num', default=81, type=int, help='num of fetching threads')
 

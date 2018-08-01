@@ -42,8 +42,8 @@ class Model3(nn.Module):
         # visual_net.eval()
         print(visual_net.config)
         # Freeze the back_bone model
-        for param in visual_net.parameters():
-            param.requires_grad = False
+        for param in visual_net.resnet_graph.parameters():
+            param.requires_grad = True
 
         # Freeze the classifier
         for param in visual_net.fpn_classifier_graph.parameters():
@@ -67,9 +67,10 @@ class Model3(nn.Module):
         self.body = body
         self.opts = opts
         self.visual_net = visual_net
-        self.visual_net.eval()
+        # self.visual_net.eval()
         self.body.eval()
-        self.ae_net = AENet2()
+        self.ae_net = AENet()
+        self.ae_clsfier = AEN_Clsfier()
 
         # feature expanding to 1024 then feed to mask-RCNN classifier
         self.fc_p3 = nn.Linear(256, 1024)
@@ -140,15 +141,20 @@ class Model3(nn.Module):
         targets = np.zeros([self.opts.batch_size, self.visual_net.config.POST_NMS_ROIS_TRAINING])
         rpn_rois, concatenated_feat = self.visual_net(img)
         P3, P4, P5 = concatenated_feat[1], concatenated_feat[2], concatenated_feat[3]
+
         # Stack-attention and features
-        att_map3, att_feat3, att_map4, att_feat4, att_map5, att_feat5 = self.body(P3, P4, P5, one_hot)
+        # att_map3, att_feat3, att_map4, att_feat4, att_map5, att_feat5 = self.body(P3, P4, P5, one_hot)
+        #
+        # # Concatenate Attention Maps
+        # # con_map = (att_map3 + F.upsample(att_map5, scale_factor=2, mode='bilinear'))/2
+        # con_map = (nn.functional.avg_pool2d(att_map3, 2) + att_map5)/2
+        # v_feat, t_feat = self.ae_net(P3, P5, con_map, embedding)
+        #
+        # return v_feat, t_feat, con_map, rpn_rois, P3, P5
 
-        # Concatenate Attention Maps
-        # con_map = (att_map3 + F.upsample(att_map5, scale_factor=2, mode='bilinear'))/2
-        con_map = (nn.functional.avg_pool2d(att_map3, 2) + att_map5)/2
-        v_feat, t_feat = self.ae_net(P3, P5, con_map, embedding)
-
-        return v_feat, t_feat, con_map, rpn_rois, P5
+        # Train Attribute embedding classifier network
+        predicted_classes = self.ae_clsfier(P3, P4)
+        return predicted_classes
 
 
 class FrontBone(nn.Module):
@@ -217,20 +223,21 @@ class AENet(nn.Module):
     def __init__(self):
         super(AENet, self).__init__()
         self.avgpool = nn.AvgPool2d(64)
-        self.visual_fc = nn.Linear(256, 1024)
+        self.visual_fc = nn.Linear(256, 300)
         self.text_fc = nn.Linear(300, 1024)
         self.conv = nn.Conv2d(256, 256, kernel_size=1, stride=1, padding=1, bias=True)
         self.prelu = nn.PReLU()
 
-    def forward(self, P5, entity_map, embedding):
-        text_feat = self.prelu(self.text_fc(embedding))
+    def forward(self, P3, P5, entity_map, embedding):
+        length = int(embedding.shape[0]/P3.shape[0])
+        text_feat = embedding
         visual_feat = self.avgpool(torch.mul(P5, entity_map))
         visual_feat = visual_feat.view(visual_feat.shape[0], visual_feat.shape[1])
         visual_feat = self.prelu(self.visual_fc(visual_feat))
 
         # Expand from (batch, 1024) to (batch* for pos-neg margin loss
-        visual_feat = visual_feat.view(visual_feat.shape[0], 1, visual_feat.shape[1]).expand(visual_feat.shape[0], 8, visual_feat.shape[1])\
-            .contiguous().view(visual_feat.shape[0] * 8, visual_feat.shape[1])
+        visual_feat = visual_feat.view(visual_feat.shape[0], 1, visual_feat.shape[1]).expand(visual_feat.shape[0], length, visual_feat.shape[1])\
+            .contiguous().view(visual_feat.shape[0] * length, visual_feat.shape[1])
         return visual_feat, text_feat
 
 
@@ -238,14 +245,15 @@ class AENet2(nn.Module):
     def __init__(self):
         super(AENet2, self).__init__()
         self.avgpool = nn.AvgPool2d(64)
-        self.visual_fc = nn.Linear(512, 1024)
+        self.visual_fc = nn.Linear(512, 300)
         self.text_fc = nn.Linear(300, 1024)
         self.conv = nn.Conv2d(512, 512, kernel_size=1, stride=1, padding=0, bias=True)
         self.prelu = nn.PReLU()
         self.relu = nn.ReLU()
 
     def forward(self, P3, P5, entity_map, embedding):
-        text_feat = self.prelu(self.text_fc(embedding))
+        length = int(embedding.shape[0]/P3.shape[0])
+        text_feat = embedding
 
         # P3 & P5 concatenation
         P5 = torch.cat([torch.nn.functional.avg_pool2d(P3, 2), P5], 1)
@@ -254,7 +262,29 @@ class AENet2(nn.Module):
         visual_feat = visual_feat.view(visual_feat.shape[0], visual_feat.shape[1])
         visual_feat = self.prelu(self.visual_fc(visual_feat))
 
-        # Expand from (batch, 1024) to (batch* for pos-neg margin loss
-        visual_feat = visual_feat.view(visual_feat.shape[0], 1, visual_feat.shape[1]).expand(visual_feat.shape[0], 8, visual_feat.shape[1])\
-            .contiguous().view(visual_feat.shape[0] * 8, visual_feat.shape[1])
+        # Expand from (batch, 300) to (batch*length, 300) for pos-neg margin loss
+        visual_feat = visual_feat.view(visual_feat.shape[0], 1, visual_feat.shape[1]).expand(
+            visual_feat.shape[0], length, visual_feat.shape[1]).contiguous().\
+            view(visual_feat.shape[0] * length, visual_feat.shape[1])
         return visual_feat, text_feat
+
+
+class AEN_Clsfier(nn.Module):
+    def __init__(self):
+        super(AEN_Clsfier, self).__init__()
+        self.avgpool = nn.AvgPool2d(64)
+        self.visual_fc = nn.Linear(256, 75)
+        self.conv = nn.Conv2d(512, 512, kernel_size=1, stride=1, padding=0, bias=True)
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, P4, P5):
+
+        # P3 & P4 concatenation
+        # concat = torch.cat([torch.nn.functional.avg_pool2d(P3, 2), P4], 1)
+        # concat = self.relu(self.conv(concat))
+        visual_feat = self.avgpool(P5)
+        visual_feat = visual_feat.view(visual_feat.shape[0], visual_feat.shape[1])
+        visual_feat = self.relu(self.visual_fc(visual_feat))
+
+        return self.sigmoid(visual_feat)
