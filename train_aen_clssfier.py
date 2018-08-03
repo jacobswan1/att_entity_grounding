@@ -4,7 +4,7 @@ from FlickrDataset2 import FlickrDataset2
 from tensorboardX import SummaryWriter
 from torchvision import transforms
 import matplotlib.pyplot as plt
-from Model3 import Model3
+from resnet import resnet101
 from net_util import *
 from parser import *
 
@@ -39,15 +39,13 @@ def train_net(net, opts):
     for batch_idx, (images, category, (one_hot, label), textual_emb, phrase, mask, line, filename, size, all_one_hot,
                     att_emb, att_label, ent_att_lable) in enumerate(data_loader):
 
-        model.visual_net.config.IMAGES_PER_GPU = images.size(0)
+        # model.visual_net.config.IMAGES_PER_GPU = images.size(0)
         images = Variable(images).cuda()
-        all_one_hot = Variable(all_one_hot).cuda().float()
-        att_emb = Variable(att_emb.view(att_emb.shape[0] * att_emb.shape[1], att_emb.shape[2]).float()).cuda()
         ent_att_lable = Variable(ent_att_lable).cuda().float()
 
-        predicted_cls = net(images, all_one_hot, att_emb)
+        x, feat, conv_feat = net(images)
 
-        loss = opts.criterion[0](predicted_cls, ent_att_lable)
+        loss = opts.criterion[0](x, ent_att_lable)
 
         train_loss += loss.data[0]
         optimizer.zero_grad()
@@ -57,7 +55,7 @@ def train_net(net, opts):
         batch_idx += 1
         if batch_idx % 10 == 0:
             writer.add_scalar('BCE Loss', train_loss / (batch_idx + 1), opts.epoch*1500 +batch_idx)
-        print('BCE Loss: %.8f' % (train_loss/(batch_idx+1)))
+        print('BCE Loss: %.8f' % (train_loss / (batch_idx + 1)))
 
     train_loss /= (batch_idx + 1)
 
@@ -100,7 +98,7 @@ if __name__ == '__main__':
 
     # Loading Data
     print("Preparing Flickr data set...")
-    size = (1024, 1024)
+    size = (256, 256)
     feat_size = (128, 128)
     transform = transforms.Compose([transforms.Resize(size), transforms.ToTensor()])
     data_set = FlickrDataset2('/media/drive1/Data/flickr30k/flickr30k_images/', feat_size, transform)
@@ -119,7 +117,8 @@ if __name__ == '__main__':
 
     # Model
     print('==> Building model...')
-    model = Model3(opts)
+    model = resnet101(True)
+    model.fc = torch.nn.Linear(2048, 75)
     # Load Back bone Module
     if opts.resume:
         state_dict = torch.load(opts.resume)['state_dict']
@@ -128,6 +127,7 @@ if __name__ == '__main__':
         model.load_state_dict(new_params)
     start_epoch = 0
     print('==> model built.')
+    # model.eval()
     opts.criterion = [torch.nn.BCELoss()]
 
     # Training
